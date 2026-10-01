@@ -1,0 +1,27 @@
+{
+  "name": "mobilewright-practice",
+  "version": "1.0.0",
+  "devDependencies": {
+    "@mobilewright/test": "^0.0.63",
+    "@types/node": "^24.19.0",
+    "cross-env": "^10.1.0",
+    "dotenv": "^18.0.5",
+    "mobilewright": "^0.0.63",
+    "prettier": "^3.9.9",
+    "typescript": "^7.0.2"
+  },
+  "scripts": {
+    "inspect": "mobilewright inspect",
+    "test": "mobilewright test",
+    "test:headed": "cross-env HEADED=1 mobilewright test",
+    "test:parallel": "mobilewright test -c mobilewright.parallel.config.ts",
+    "test:parallel:headed": "cross-env HEADED=1 mobilewright test -c mobilewright.parallel.config.ts",
+    "emulator:start": "set -a && . ./.env && set +a && mobilecli device boot --device $EMULATOR_1",
+    "emulator:start:headed": "set -a && . ./.env && set +a && $ANDROID_HOME/emulator/emulator -avd $EMULATOR_1",
+    "emulator:kill": "set -a && . ./.env && set +a && mobilecli device shutdown --device $EMULATOR_1",
+    "emulators:kill:all": "adb devices | awk '/^emulator-/{print $1}' | xargs -I{} adb -s {} emu kill; mobilecli daemon stop",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "report": "mobilewright show-report"
+  }
+}

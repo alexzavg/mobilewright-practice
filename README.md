@@ -1,0 +1,120 @@
+# mobilewright-practice
+
+Android test automation with [Mobilewright](https://mobilewright.dev/docs), running on local emulators.
+
+## Contents
+
+- [Preconditions](#preconditions)
+- [Setup](#setup)
+- [Running tests](#running-tests)
+- [Architecture](#architecture)
+  - [Single mode](#single-mode-mobilewrightconfigts)
+  - [Parallel mode](#parallel-mode-mobilewrightparallelconfigts)
+  - [Emulator lifecycle](#emulator-lifecycle-utilsemulatorts)
+- [Failure artifacts](#failure-artifacts)
+- [Formatting](#formatting)
+
+## Preconditions
+
+Install these before the setup:
+
+- **macOS.** The scripts use a macOS shell and the default Android SDK path.
+- **[Android Studio](https://developer.android.com/studio).** It installs the Android SDK, the emulator and `adb`. In the SDK Manager, install an Android 14 (API 34) Google APIs system image.
+- **Java JDK 17 or newer**, with `JAVA_HOME` set.
+- **`ANDROID_HOME`** set to the SDK path, with `platform-tools` on your `PATH` so `adb` works:
+  ```sh
+  export ANDROID_HOME="$HOME/Library/Android/sdk"
+  export PATH="$PATH:$ANDROID_HOME/platform-tools"
+  ```
+- **[nvm](https://github.com/nvm-sh/nvm)**, to install the pinned Node.js version.
+- **Git.**
+
+Xcode isn't needed: this repo only runs Android tests.
+
+## Setup
+
+1. Use Node.js 24. The version is pinned in `.nvmrc`:
+   ```sh
+   nvm install && nvm use
+   ```
+2. Install dependencies:
+   ```sh
+   npm install
+   ```
+3. Create the emulators in Android Studio's Device Manager. The tests use two identical AVDs: `Samsung_S24_API_34` and a copy of it named `Samsung_S24_API_34_2`. Use a Google APIs image: the teardown needs root to clean Chrome's tabs.
+4. Copy `.env.example` to `.env` and adjust the values if needed. `.env` is the single source of truth for emulator names, the app bundle ID and URLs:
+   ```
+   EMULATOR_1=Samsung_S24_API_34
+   EMULATOR_2=Samsung_S24_API_34_2
+   CHROME_BUNDLE_ID=com.android.chrome
+   DOCS_URL=https://mobilewright.dev/docs
+   ```
+5. Check the environment:
+   ```sh
+   npx mobilewright doctor
+   ```
+
+## Running tests
+
+| Command                        | What it does                                               |
+| ------------------------------ | ---------------------------------------------------------- |
+| `npm test`                     | Single mode, headless emulator                             |
+| `npm run test:headed`          | Single mode, emulator window visible                       |
+| `npm run test:parallel`        | Parallel mode, two headless emulators                      |
+| `npm run test:parallel:headed` | Parallel mode, emulator windows visible                    |
+| `npm run report`               | Open the HTML report (http://localhost:9323)               |
+| `npm run inspect`              | Open the Mobilewright Inspector (needs a running emulator) |
+
+Run a single file with `npm test -- tests/chrome-docs.spec.ts`.
+
+You don't need to start emulators yourself: the test commands boot them and shut them down. To manage them by hand:
+
+| Command                         | What it does                    |
+| ------------------------------- | ------------------------------- |
+| `npm run emulator:start`        | Boot `EMULATOR_1` (headless)    |
+| `npm run emulator:start:headed` | Boot `EMULATOR_1` with a window |
+| `npm run emulator:kill`         | Shut down `EMULATOR_1`          |
+| `npm run emulators:kill:all`    | Kill every running emulator     |
+
+## Architecture
+
+There are two configs. Both share the settings in `base-config.ts`: platform, retries (0 locally, 2 when `CI` is set), and failure artifacts. They differ in how many emulators they use.
+
+### Single mode: `mobilewright.config.ts`
+
+- One emulator (`EMULATOR_1`), one worker, tests run one after another.
+- `utils/global-setup.ts` boots the emulator before all tests.
+- `utils/global-teardown.ts` shuts it down after all tests.
+
+### Parallel mode: `mobilewright.parallel.config.ts`
+
+- Two emulators (`EMULATOR_1` and `EMULATOR_2`), two workers, `fullyParallel: true`.
+- `utils/global-setup-parallel.ts` boots both emulators at the same time.
+- `utils/global-teardown-parallel.ts` shuts both down.
+- Mobilewright gives each worker its own emulator, so tests never share a device.
+
+Parallel mode needs two separate AVDs. Two copies of the same AVD don't work: mobilecli identifies an emulator by its AVD name, so Mobilewright sees both copies as one device. To add a third emulator, clone another AVD, add `EMULATOR_3` to `.env`, and add it to the parallel setup and config.
+
+### Emulator lifecycle (`utils/emulator.ts`)
+
+Both setups and teardowns use the same helpers:
+
+- **Boot:** headless runs use `mobilecli device boot`. Headed runs (`HEADED=1`) start the emulator directly, because mobilecli always hides the window.
+- **Reuse:** if an emulator is already running, setup reuses it instead of booting it again.
+- **Clean state:** before shutdown, teardown closes all Chrome tabs on every running emulator, so the next run starts clean.
+- **Shutdown:** teardown only shuts down emulators that setup booted. An emulator you started yourself stays running.
+
+## Failure artifacts
+
+When a test fails, the report includes a screenshot, a video, the view tree (the screen's elements as JSON) and a trace. Open them with `npm run report`.
+
+The trace shows the test steps but not the rendered screen. Playwright's trace viewer draws the screen from a browser page, and there isn't one on a device. Use the screenshot and video instead.
+
+## Formatting
+
+Prettier rules come from the `martech-playwright-template` repo.
+
+```sh
+npm run format        # fix formatting
+npm run format:check  # check only
+```
