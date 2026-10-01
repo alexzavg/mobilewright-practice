@@ -19,7 +19,7 @@ Android test automation with [Mobilewright](https://mobilewright.dev/docs), runn
 Install these before the setup:
 
 - **macOS.** The scripts use a macOS shell and the default Android SDK path.
-- **[Android Studio](https://developer.android.com/studio).** It installs the Android SDK, the emulator and `adb`. In the SDK Manager, install an Android 14 (API 34) Google APIs system image.
+- **[Android Studio](https://developer.android.com/studio).** It installs the Android SDK, the emulator and `adb`. In the SDK Manager, install an Android 14 (API 34) system image of the **Google APIs** type, not **Google Play** (see [Why Google APIs](#why-google-apis)).
 - **Java JDK 17 or newer**, with `JAVA_HOME` set.
 - **`ANDROID_HOME`** set to the SDK path, with `platform-tools` on your `PATH` so `adb` works:
   ```sh
@@ -41,7 +41,7 @@ Xcode isn't needed: this repo only runs Android tests.
    ```sh
    npm install
    ```
-3. Create the emulators in Android Studio's Device Manager. The tests use two identical AVDs: `Samsung_S24_API_34` and a copy of it named `Samsung_S24_API_34_2`. Use a Google APIs image: the teardown needs root to clean Chrome's tabs.
+3. Create the emulators in Android Studio's Device Manager. The tests use two identical AVDs: `Samsung_S24_API_34` and a copy of it named `Samsung_S24_API_34_2`. Pick the Google APIs system image for both.
 4. Copy `.env.example` to `.env` and adjust the values if needed. `.env` is the single source of truth for emulator names, the app bundle ID and URLs:
    ```
    EMULATOR_1=Samsung_S24_API_34
@@ -90,7 +90,7 @@ There are two configs. Both share the settings in `base-config.ts`: platform, re
 
 - Two emulators (`EMULATOR_1` and `EMULATOR_2`), two workers, `fullyParallel: true`.
 - `utils/global-setup-parallel.ts` boots both emulators at the same time.
-- `utils/global-teardown-parallel.ts` shuts both down.
+- `utils/global-teardown.ts` shuts both down. It's the same teardown as single mode: it shuts down whatever setup booted.
 - Mobilewright gives each worker its own emulator, so tests never share a device.
 
 Parallel mode needs two separate AVDs. Two copies of the same AVD don't work: mobilecli identifies an emulator by its AVD name, so Mobilewright sees both copies as one device. To add a third emulator, clone another AVD, add `EMULATOR_3` to `.env`, and add it to the parallel setup and config.
@@ -103,6 +103,10 @@ Both setups and teardowns use the same helpers:
 - **Reuse:** if an emulator is already running, setup reuses it instead of booting it again.
 - **Clean state:** before shutdown, teardown closes all Chrome tabs on every running emulator, so the next run starts clean.
 - **Shutdown:** teardown only shuts down emulators that setup booted. An emulator you started yourself stays running.
+
+#### Why Google APIs
+
+Chrome remembers its open tabs between runs, so without cleanup each run adds more tabs. Teardown deletes Chrome's saved tabs, but Android keeps them in a protected app folder that only the device's admin (root) account can change. Google APIs emulator images allow admin access from `adb`. Google Play images don't, so on those the cleanup can't delete the tabs.
 
 ## Failure artifacts
 

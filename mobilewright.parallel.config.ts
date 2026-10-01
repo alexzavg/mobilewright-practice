@@ -10,5 +10,5 @@ export default defineConfig({
   fullyParallel: true,
   workers: 2,
   globalSetup: './utils/global-setup-parallel.ts',
-  globalTeardown: './utils/global-teardown-parallel.ts',
+  globalTeardown: './utils/global-teardown.ts',
 })

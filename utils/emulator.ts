@@ -54,7 +54,7 @@ export async function startEmulators(avds: string[]) {
 }
 
 // Closes Chrome's open tabs on every running emulator so the next boot starts clean.
-// Root (su) works on Google APIs emulator images.
+// Chrome keeps tabs in a protected folder, so this needs admin (su) access: Google APIs images allow it, Google Play images don't.
 async function clearChromeTabs() {
   const { stdout } = await run('adb', ['devices'])
   const serials = stdout
