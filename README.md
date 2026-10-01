@@ -12,6 +12,7 @@ Android test automation with [Mobilewright](https://mobilewright.dev/docs), runn
   - [Parallel mode](#parallel-mode-mobilewrightparallelconfigts)
   - [Emulator lifecycle](#emulator-lifecycle-utilsemulatorts)
 - [Failure artifacts](#failure-artifacts)
+- [Claude Code](#claude-code)
 - [Formatting](#formatting)
 
 ## Preconditions
@@ -113,6 +114,10 @@ Chrome remembers its open tabs between runs, so without cleanup each run adds mo
 When a test fails, the report includes a screenshot, a video, the view tree (the screen's elements as JSON) and a trace. Open them with `npm run report`.
 
 The trace shows the test steps but not the rendered screen. Playwright's trace viewer draws the screen from a browser page, and there isn't one on a device. Use the screenshot and video instead.
+
+## Claude Code
+
+The repo includes the [Mobilewright skill](https://github.com/mobile-next/mobilewright-skill) in `.claude/skills/mobilewright/`, and `.claude/CLAUDE.md` tells Claude Code to use it. When you ask Claude to automate a scenario or change a test, it loads the skill first and follows Mobilewright's API and locator practices.
 
 ## Formatting
 
