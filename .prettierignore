@@ -2,5 +2,5 @@ node_modules
 *.json
 playwright-report
 test-results
-.agents
+.claude
 mobilewright-report
