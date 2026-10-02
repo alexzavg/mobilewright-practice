@@ -11,6 +11,7 @@ Android test automation with [Mobilewright](https://mobilewright.dev/docs), runn
   - [Single mode](#single-mode-mobilewrightconfigts)
   - [Parallel mode](#parallel-mode-mobilewrightparallelconfigts)
   - [Emulator lifecycle](#emulator-lifecycle-utilsemulatorts)
+- [Writing tests](#writing-tests)
 - [Failure artifacts](#failure-artifacts)
 - [Claude Code](#claude-code)
 - [Formatting](#formatting)
@@ -108,6 +109,38 @@ Both setups and teardowns use the same helpers:
 #### Why Google APIs
 
 Chrome remembers its open tabs between runs, so without cleanup each run adds more tabs. Teardown deletes Chrome's saved tabs, but Android keeps them in a protected app folder that only the device's admin (root) account can change. Google APIs emulator images allow admin access from `adb`. Google Play images don't, so on those the cleanup can't delete the tabs.
+
+## Writing tests
+
+Tests use the Screen Object Model, the mobile version of the Page Object Model:
+
+```
+locators/   selectors, one module per screen (docs.locators.ts, chrome.locators.ts)
+screens/    screen objects: actions, waits and assertions (DocsScreen, ChromeScreen)
+utils/screenManager.ts   creates screen objects when a test uses them
+utils/fixtures.ts        the screenManager fixture
+tests/      specs: only call screen objects, no selectors
+```
+
+Import `test` from `utils/fixtures` and use the `screenManager` fixture:
+
+```ts
+import { test } from '../utils/fixtures'
+
+test('mobilewright docs open in Chrome', async ({ screenManager }) => {
+  await screenManager.chrome.launch()
+  await screenManager.docs.open()
+  await screenManager.docs.expectLoaded()
+})
+```
+
+To add a screen:
+
+1. Add its selectors to a new module in `locators/`.
+2. Add a screen object in `screens/` that uses them.
+3. Add a getter for it in `utils/screenManager.ts`.
+
+Each getter creates its screen object only when a test accesses it, as `pageManager` does in the `martech-playwright-template` repo.
 
 ## Failure artifacts
 

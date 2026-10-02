@@ -13,6 +13,8 @@
   "include": [
     "*.ts",
     "tests/**/*.ts",
-    "utils/**/*.ts"
+    "utils/**/*.ts",
+    "screens/**/*.ts",
+    "locators/**/*.ts"
   ]
 }

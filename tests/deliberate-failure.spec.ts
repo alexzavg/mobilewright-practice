@@ -1,22 +1,20 @@
-import { test, expect } from '@mobilewright/test'
+import { test } from '../utils/fixtures'
 
 test.use({ bundleId: process.env.CHROME_BUNDLE_ID! })
 
-test.beforeEach(async ({ device }) => {
-  await device.terminateApp(process.env.CHROME_BUNDLE_ID!).catch(() => {})
-  await device.launchApp(process.env.CHROME_BUNDLE_ID!)
+test.beforeEach(async ({ screenManager }) => {
+  await screenManager.chrome.launch()
 })
 
-test.afterEach(async ({ device }) => {
-  await device.terminateApp(process.env.CHROME_BUNDLE_ID!)
+test.afterEach(async ({ screenManager }) => {
+  await screenManager.chrome.close()
 })
 
-// Fails on purpose to produce failure artifacts (screenshot, view tree, video, trace) in the report
-test('deliberate failure: missing element on docs page', async ({ device, screen }) => {
-  await device.openUrl(process.env.DOCS_URL!)
-  await expect(screen.getByText('Introduction')).toBeVisible({ timeout: 15_000 })
-
-  await expect(screen.getByText('This text does not exist on the page')).toBeVisible({
-    timeout: 3_000,
-  })
+test('deliberate failure: missing element on docs page', async ({ screenManager }) => {
+  await screenManager.docs.open()
+  await screenManager.docs.expectLoaded()
+  await screenManager.docs.expectTextVisible(
+    'This text does not exist on the page',
+    3_000
+  )
 })
