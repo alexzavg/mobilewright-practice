@@ -14,6 +14,7 @@ Android and iOS test automation with [Mobilewright](https://mobilewright.dev/doc
   - [Simulator lifecycle](#simulator-lifecycle-utilssimulatorts)
 - [Writing tests](#writing-tests)
 - [Failure artifacts](#failure-artifacts)
+- [CI](#ci)
 - [Claude Code](#claude-code)
 - [Formatting](#formatting)
 
@@ -176,6 +177,15 @@ Each getter creates its screen object only when a test accesses it, as `pageMana
 When a test fails, the report includes a screenshot, a video, the view tree (the screen's elements as JSON) and a trace. Open them with `npm run report`.
 
 The trace shows the test steps but not the rendered screen. Playwright's trace viewer draws the screen from a browser page, and there isn't one on a device. Use the screenshot and video instead.
+
+## CI
+
+`.github/workflows/tests.yml` runs the tests on GitHub Actions on demand: **Actions > Mobile tests > Run workflow**, then pick `android` or `ios`. From the terminal: `gh workflow run tests.yml -f platform=ios`. The HTML report is attached to the run as the `mobilewright-report` artifact.
+
+- **Android** runs on `ubuntu-latest` with an Android 14 Google APIs emulator. The emulator and a snapshot of its first boot are cached, so a run takes about 2.5 minutes. The first run after a change to the workflow takes about 4 minutes, because it rebuilds the cache.
+- **iOS** runs on `macos-15`, whose Xcode 16.4 has the `iPhone 16` with iOS 18.5 from `.env.example`. A fresh simulator is slow: Safari's first launch takes about 3 minutes, so the workflow opens Safari once before the tests. A run takes about 9 minutes.
+
+The run always fails, because `deliberate-failure.spec.ts` fails on purpose.
 
 ## Claude Code
 
