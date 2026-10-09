@@ -109,6 +109,21 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # .env is gitignored, so CI uses the example values. The simulator steps need four of them.
+      - name: Create .env
+        run: |
+          cp .env.example .env
+          grep -E '^(SIMULATOR_1|IOS_VERSION|SAFARI_BUNDLE_ID|DOCS_URL)=' .env | tr -d '"' >> "$GITHUB_ENV"
+
+      # A fresh simulator is very slow for its first minutes: Safari's first launch alone took 40s.
+      # Start the boot now, so it runs during the next steps. Several iOS versions have an "iPhone 16", so pick by IOS_VERSION.
+      - name: Boot simulator
+        run: |
+          runtime="com.apple.CoreSimulator.SimRuntime.iOS-${IOS_VERSION//./-}"
+          udid=$(xcrun simctl list devices available -j | jq -r --arg rt "$runtime" --arg name "$SIMULATOR_1" '.devices[$rt][] | select(.name == $name) | .udid')
+          echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+          xcrun simctl boot "$udid"
+
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -116,11 +131,14 @@ jobs:
 
       - run: npm ci
 
-      # .env is gitignored, so CI uses the example values
-      - name: Create .env
-        run: cp .env.example .env
+      # Open the docs in Safari once, so the tests don't pay for Safari's slow first launch
+      - name: Warm up Safari
+        run: |
+          xcrun simctl bootstatus "$SIMULATOR_UDID"
+          xcrun simctl launch "$SIMULATOR_UDID" "$SAFARI_BUNDLE_ID"
+          xcrun simctl openurl "$SIMULATOR_UDID" "$DOCS_URL"
 
-      # Global setup boots the simulator and installs mobilecli's agent on it.
+      # Global setup reuses the running simulator and installs mobilecli's agent on it.
       # The runner is slow: launching Safari and starting the video take 10+ seconds each, so the default 30s test timeout isn't enough.
       - name: Run tests
         run: npm run test:ios -- --timeout 60000
