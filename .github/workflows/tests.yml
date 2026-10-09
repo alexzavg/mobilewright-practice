@@ -1,0 +1,151 @@
+name: Mobile tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to run the tests on
+        type: choice
+        options: [android, ios]
+        default: android
+
+jobs:
+  android:
+    if: inputs.platform == 'android'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # .env is gitignored, so CI uses the example values. The emulator steps need two of them.
+      - name: Create .env
+        run: |
+          cp .env.example .env
+          grep -E '^(EMULATOR_1|CHROME_BUNDLE_ID)=' .env >> "$GITHUB_ENV"
+
+      # Hardware acceleration for the emulator on Linux runners
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # The system image and the AVD with a snapshot of its first boot, so later runs skip the
+      # download and the cold boot. Any change to this file rebuilds them.
+      - name: Restore emulator cache
+        id: emulator-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: &emulator-cache-path |
+            ~/.android/avd/*
+            ~/.android/adb*
+            /usr/local/lib/android/sdk/system-images/android-34/google_apis/x86_64
+          key: &emulator-cache-key emulator-${{ hashFiles('.github/workflows/tests.yml') }}
+
+      - name: Create emulator snapshot
+        if: steps.emulator-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          # Same image type as locally: Android 14, Google APIs. Teardown needs its root access to clear Chrome tabs.
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          # Global setup finds a running emulator by its AVD name and reuses it instead of booting one
+          avd-name: ${{ env.EMULATOR_1 }}
+          force-avd-creation: false
+          # -feature -Vulkan: with Vulkan on the software GPU, Chrome's GPU process keeps crashing
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -feature -Vulkan
+          disable-animations: false
+          # The snapshot is taken while the system is still busy after its first boot, so after a restore
+          # the launcher can show "isn't responding" over the app. The snapshot keeps this setting, which hides such dialogs.
+          script: adb shell settings put global hide_error_dialogs 1
+
+      # Saved right away: a post-job save would skip it, because the deliberate failure test fails the job
+      - name: Save emulator cache
+        if: steps.emulator-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: *emulator-cache-path
+          key: *emulator-cache-key
+
+      - name: Run tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          avd-name: ${{ env.EMULATOR_1 }}
+          force-avd-creation: false
+          # Boots from the snapshot and doesn't save over it, so every run starts from the same state
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -feature -Vulkan
+          # Skip Chrome's first-run screens and its notifications prompt, which a fresh emulator shows over the page
+          script: |
+            adb shell am set-debug-app --persistent $CHROME_BUNDLE_ID
+            adb shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run" > /data/local/tmp/chrome-command-line'
+            adb shell pm grant $CHROME_BUNDLE_ID android.permission.POST_NOTIFICATIONS
+            npm test
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mobilewright-report
+          path: mobilewright-report/
+
+  ios:
+    if: inputs.platform == 'ios'
+    # Xcode 16.4 with iOS 18.5 simulators, as SIMULATOR_* and IOS_VERSION in .env.example expect
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # .env is gitignored, so CI uses the example values. The simulator steps need four of them.
+      - name: Create .env
+        run: |
+          cp .env.example .env
+          grep -E '^(SIMULATOR_1|IOS_VERSION|SAFARI_BUNDLE_ID|DOCS_URL)=' .env | tr -d '"' >> "$GITHUB_ENV"
+
+      # A fresh simulator is very slow for its first minutes: Safari's first launch alone took 40s.
+      # Start the boot now, so it runs during the next steps. Several iOS versions have an "iPhone 16", so pick by IOS_VERSION.
+      - name: Boot simulator
+        run: |
+          runtime="com.apple.CoreSimulator.SimRuntime.iOS-${IOS_VERSION//./-}"
+          udid=$(xcrun simctl list devices available -j | jq -r --arg rt "$runtime" --arg name "$SIMULATOR_1" '.devices[$rt][] | select(.name == $name) | .udid')
+          echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+          xcrun simctl boot "$udid"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # Open the docs in Safari once, so the tests don't pay for Safari's slow first launch
+      - name: Warm up Safari
+        run: |
+          xcrun simctl bootstatus "$SIMULATOR_UDID"
+          xcrun simctl launch "$SIMULATOR_UDID" "$SAFARI_BUNDLE_ID"
+          xcrun simctl openurl "$SIMULATOR_UDID" "$DOCS_URL"
+
+      # Global setup reuses the running simulator and installs mobilecli's agent on it.
+      # The runner is slow: launching Safari and starting the video take 10+ seconds each, so the default 30s test timeout isn't enough.
+      - name: Run tests
+        run: npm run test:ios -- --timeout 60000
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mobilewright-report
+          path: mobilewright-report/
