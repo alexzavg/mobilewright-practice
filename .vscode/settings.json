@@ -1,0 +1,8 @@
+{
+  // VS Code tasks (npm scripts) run in a shell without nvm, so they pick up whatever Node is on PATH.
+  // An interactive login zsh loads nvm from ~/.zshrc, whose default must match .nvmrc.
+  "terminal.integrated.automationProfile.osx": {
+    "path": "/bin/zsh",
+    "args": ["-l", "-i"]
+  }
+}
