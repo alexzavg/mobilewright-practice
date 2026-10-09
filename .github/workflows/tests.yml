@@ -8,8 +8,6 @@ on:
         type: choice
         options: [android, ios]
         default: android
-  # TEMPORARY: registers the workflow so it can be dispatched from this branch. Both jobs skip on it.
-  pull_request:
 
 jobs:
   android:
