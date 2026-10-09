@@ -1,0 +1,60 @@
+name: Android tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # .env is gitignored, so CI uses the example values. The emulator steps need two of them.
+      - name: Create .env
+        run: |
+          cp .env.example .env
+          grep -E '^(EMULATOR_1|CHROME_BUNDLE_ID)=' .env >> "$GITHUB_ENV"
+
+      # Hardware acceleration for the emulator on Linux runners
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # Boots the emulator, runs the script, shuts the emulator down
+      - name: Run tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          # Same image type as locally: Android 14, Google APIs. Teardown needs its root access to clear Chrome tabs.
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          # Global setup finds a running emulator by its AVD name and reuses it instead of booting one
+          avd-name: ${{ env.EMULATOR_1 }}
+          # The action's defaults plus -feature -Vulkan: with Vulkan on the software GPU, Chrome's GPU process keeps crashing
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -feature -Vulkan
+          # Skip Chrome's first-run screens, which a fresh emulator shows instead of the page
+          script: |
+            adb shell am set-debug-app --persistent $CHROME_BUNDLE_ID
+            adb shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run" > /data/local/tmp/chrome-command-line'
+            npm test
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mobilewright-report
+          path: mobilewright-report/
