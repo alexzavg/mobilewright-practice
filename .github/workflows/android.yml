@@ -17,7 +17,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
- 
+
       - run: npm ci
 
       # .env is gitignored, so CI uses the example values. The emulator steps need two of them.
@@ -33,8 +33,20 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      # Boots the emulator, runs the script, shuts the emulator down
-      - name: Run tests
+      # The system image and the AVD with a snapshot of its first boot, so later runs skip the
+      # download and the cold boot. Change the key to rebuild them after changing the emulator settings.
+      - name: Restore emulator cache
+        id: emulator-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: &emulator-cache-path |
+            ~/.android/avd/*
+            ~/.android/adb*
+            /usr/local/lib/android/sdk/system-images/android-34/google_apis/x86_64
+          key: &emulator-cache-key emulator-api34-google_apis-x86_64-pixel_7
+
+      - name: Create emulator snapshot
+        if: steps.emulator-cache.outputs.cache-hit != 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           # Same image type as locally: Android 14, Google APIs. Teardown needs its root access to clear Chrome tabs.
@@ -44,8 +56,31 @@ jobs:
           profile: pixel_7
           # Global setup finds a running emulator by its AVD name and reuses it instead of booting one
           avd-name: ${{ env.EMULATOR_1 }}
-          # The action's defaults plus -feature -Vulkan: with Vulkan on the software GPU, Chrome's GPU process keeps crashing
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -feature -Vulkan
+          force-avd-creation: false
+          # -feature -Vulkan: with Vulkan on the software GPU, Chrome's GPU process keeps crashing
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -feature -Vulkan
+          disable-animations: false
+          script: echo "Snapshot saved"
+
+      # Saved right away: a post-job save would skip it, because the deliberate failure test fails the job
+      - name: Save emulator cache
+        if: steps.emulator-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: *emulator-cache-path
+          key: *emulator-cache-key
+
+      - name: Run tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          avd-name: ${{ env.EMULATOR_1 }}
+          force-avd-creation: false
+          # Boots from the snapshot and doesn't save over it, so every run starts from the same state
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -feature -Vulkan
           # Skip Chrome's first-run screens and its notifications prompt, which a fresh emulator shows over the page
           script: |
             adb shell am set-debug-app --persistent $CHROME_BUNDLE_ID
