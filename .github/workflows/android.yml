@@ -17,7 +17,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-
+ 
       - run: npm ci
 
       # .env is gitignored, so CI uses the example values. The emulator steps need two of them.
