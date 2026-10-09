@@ -34,7 +34,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       # The system image and the AVD with a snapshot of its first boot, so later runs skip the
-      # download and the cold boot. Change the key to rebuild them after changing the emulator settings.
+      # download and the cold boot. Any change to this file rebuilds them.
       - name: Restore emulator cache
         id: emulator-cache
         uses: actions/cache/restore@v6
@@ -43,7 +43,7 @@ jobs:
             ~/.android/avd/*
             ~/.android/adb*
             /usr/local/lib/android/sdk/system-images/android-34/google_apis/x86_64
-          key: &emulator-cache-key emulator-api34-google_apis-x86_64-pixel_7
+          key: &emulator-cache-key emulator-${{ hashFiles('.github/workflows/android.yml') }}
 
       - name: Create emulator snapshot
         if: steps.emulator-cache.outputs.cache-hit != 'true'
@@ -60,7 +60,9 @@ jobs:
           # -feature -Vulkan: with Vulkan on the software GPU, Chrome's GPU process keeps crashing
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -feature -Vulkan
           disable-animations: false
-          script: echo "Snapshot saved"
+          # The snapshot is taken while the system is still busy after its first boot, so after a restore
+          # the launcher can show "isn't responding" over the app. The snapshot keeps this setting, which hides such dialogs.
+          script: adb shell settings put global hide_error_dialogs 1
 
       # Saved right away: a post-job save would skip it, because the deliberate failure test fails the job
       - name: Save emulator cache
