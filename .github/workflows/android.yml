@@ -46,10 +46,11 @@ jobs:
           avd-name: ${{ env.EMULATOR_1 }}
           # The action's defaults plus -feature -Vulkan: with Vulkan on the software GPU, Chrome's GPU process keeps crashing
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -feature -Vulkan
-          # Skip Chrome's first-run screens, which a fresh emulator shows instead of the page
+          # Skip Chrome's first-run screens and its notifications prompt, which a fresh emulator shows over the page
           script: |
             adb shell am set-debug-app --persistent $CHROME_BUNDLE_ID
             adb shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run" > /data/local/tmp/chrome-command-line'
+            adb shell pm grant $CHROME_BUNDLE_ID android.permission.POST_NOTIFICATIONS
             npm test
 
       - name: Upload report
