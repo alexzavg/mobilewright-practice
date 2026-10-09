@@ -1,16 +1,17 @@
 import type { Device, Screen } from 'mobilewright'
-import { ChromeScreen } from '../screens/ChromeScreen'
+import { BrowserScreen } from '../screens/BrowserScreen'
 import { DocsScreen } from '../screens/DocsScreen'
 
 // Screen objects are created only when a test accesses them
 export class ScreenManager {
   constructor(
     private readonly device: Device,
-    private readonly screen: Screen
+    private readonly screen: Screen,
+    private readonly bundleId: string
   ) {}
 
-  get chrome(): ChromeScreen {
-    return new ChromeScreen(this.device, this.screen)
+  get browser(): BrowserScreen {
+    return new BrowserScreen(this.device, this.bundleId)
   }
 
   get docs(): DocsScreen {

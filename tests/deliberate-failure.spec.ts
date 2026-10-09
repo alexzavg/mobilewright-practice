@@ -1,13 +1,11 @@
 import { test } from '../utils/fixtures'
 
-test.use({ bundleId: process.env.CHROME_BUNDLE_ID! })
-
 test.beforeEach(async ({ screenManager }) => {
-  await screenManager.chrome.launch()
+  await screenManager.browser.launch()
 })
 
 test.afterEach(async ({ screenManager }) => {
-  await screenManager.chrome.close()
+  await screenManager.browser.close()
 })
 
 test('deliberate failure: missing element on docs page', async ({ screenManager }) => {

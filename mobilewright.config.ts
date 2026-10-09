@@ -1,10 +1,9 @@
 import { defineConfig } from 'mobilewright'
-import { baseConfig } from './base-config'
+import { baseConfig, devices } from './base-config'
 
 export default defineConfig({
   ...baseConfig,
-  // mobilecli shows AVD names with spaces instead of underscores
-  deviceName: new RegExp(`^${process.env.EMULATOR_1!.replaceAll('_', ' ')}$`),
+  deviceName: new RegExp(`^${devices[0].replaceAll('_', ' ')}$`),
   fullyParallel: false,
   workers: 1,
   globalSetup: './utils/global-setup.ts',

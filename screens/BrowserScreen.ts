@@ -1,22 +1,17 @@
-import type { Device, Screen } from 'mobilewright'
-import { expect } from '@mobilewright/test'
-import { chromeLocators } from '../locators/chrome.locators'
+import type { Device } from 'mobilewright'
 
-export class ChromeScreen {
+export class BrowserScreen {
   constructor(
     private readonly device: Device,
-    private readonly screen: Screen
+    private readonly bundleId: string
   ) {}
 
   async launch() {
-    await this.device.terminateApp(process.env.CHROME_BUNDLE_ID!).catch(() => {})
-    await this.device.launchApp(process.env.CHROME_BUNDLE_ID!)
-    await expect(chromeLocators.toolbar(this.screen)).toBeVisible({
-      timeout: 15_000,
-    })
+    await this.device.terminateApp(this.bundleId).catch(() => {})
+    await this.device.launchApp(this.bundleId)
   }
 
   async close() {
-    await this.device.terminateApp(process.env.CHROME_BUNDLE_ID!)
+    await this.device.terminateApp(this.bundleId)
   }
 }

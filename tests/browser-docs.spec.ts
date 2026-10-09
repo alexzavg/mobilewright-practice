@@ -1,16 +1,14 @@
 import { test } from '../utils/fixtures'
 
-test.use({ bundleId: process.env.CHROME_BUNDLE_ID! })
-
 test.beforeEach(async ({ screenManager }) => {
-  await screenManager.chrome.launch()
+  await screenManager.browser.launch()
 })
 
 test.afterEach(async ({ screenManager }) => {
-  await screenManager.chrome.close()
+  await screenManager.browser.close()
 })
 
-test('mobilewright docs open in Chrome', async ({ screenManager }) => {
+test('mobilewright docs open in the browser', async ({ screenManager }) => {
   await screenManager.docs.open()
   await screenManager.docs.expectLoaded()
 })

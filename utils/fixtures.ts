@@ -6,8 +6,8 @@ type TestFixtures = {
 }
 
 export const test = base.extend<TestFixtures>({
-  screenManager: async ({ device, screen }, use) => {
-    await use(new ScreenManager(device, screen))
+  screenManager: async ({ device, screen, bundleId }, use) => {
+    await use(new ScreenManager(device, screen, bundleId!))
   },
 })
 
