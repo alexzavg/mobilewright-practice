@@ -120,9 +120,10 @@ jobs:
       - name: Create .env
         run: cp .env.example .env
 
-      # Global setup boots the simulator and installs mobilecli's agent on it
+      # Global setup boots the simulator and installs mobilecli's agent on it.
+      # The runner is slow: launching Safari and starting the video take 10+ seconds each, so the default 30s test timeout isn't enough.
       - name: Run tests
-        run: npm run test:ios
+        run: npm run test:ios -- --timeout 60000
 
       - name: Upload report
         if: always()
