@@ -116,7 +116,7 @@ jobs:
           cp .env.example .env
           grep -E '^(SIMULATOR_1|IOS_VERSION|SAFARI_BUNDLE_ID|DOCS_URL)=' .env | tr -d '"' >> "$GITHUB_ENV"
 
-      # A fresh simulator is very slow for its first minutes: Safari's first launch alone took 40s.
+      # A fresh simulator is very slow for its first minutes.
       # Start the boot now, so it runs during the next steps. Several iOS versions have an "iPhone 16", so pick by IOS_VERSION.
       - name: Boot simulator
         run: |
