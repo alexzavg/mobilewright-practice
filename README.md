@@ -180,7 +180,7 @@ The trace shows the test steps but not the rendered screen. Playwright's trace v
 
 ## CI
 
-`.github/workflows/tests.yml` runs the tests on GitHub Actions on demand: **Actions > Mobile tests > Run workflow**, then pick `android` or `ios`. From the terminal: `gh workflow run tests.yml -f platform=ios`. The HTML report is attached to the run as the `mobilewright-report` artifact.
+`.github/workflows/tests.yml` runs the tests on GitHub Actions on demand: **Actions > Mobile tests > Run workflow**, then pick `both`, `android` or `ios`. `both` runs the two platforms side by side, as separate jobs. From the terminal: `gh workflow run tests.yml -f platform=ios`. Each job attaches its HTML report to the run as the `mobilewright-report-android` or `mobilewright-report-ios` artifact.
 
 - **Android** runs on `ubuntu-latest` with an Android 14 Google APIs emulator. The emulator and a snapshot of its first boot are cached, so a run takes about 2.5 minutes. The first run after a change to the workflow takes about 4 minutes, because it rebuilds the cache.
 - **iOS** runs on `macos-15`, whose Xcode 16.4 has the `iPhone 16` with iOS 18.5 from `.env.example`. A fresh simulator is slow: Safari's first launch takes about 3 minutes, so the workflow opens Safari once before the tests. A run takes about 9 minutes.

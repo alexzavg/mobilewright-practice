@@ -6,12 +6,13 @@ on:
       platform:
         description: Platform to run the tests on
         type: choice
-        options: [android, ios]
-        default: android
+        # Each platform runs in its own job, so "both" runs them side by side
+        options: [both, android, ios]
+        default: both
 
 jobs:
   android:
-    if: inputs.platform == 'android'
+    if: inputs.platform != 'ios'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -98,11 +99,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: mobilewright-report
+          name: mobilewright-report-android
           path: mobilewright-report/
 
   ios:
-    if: inputs.platform == 'ios'
+    if: inputs.platform != 'android'
     # Xcode 16.4 with iOS 18.5 simulators, as SIMULATOR_* and IOS_VERSION in .env.example expect
     runs-on: macos-15
     timeout-minutes: 30
@@ -147,5 +148,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: mobilewright-report
+          name: mobilewright-report-ios
           path: mobilewright-report/
